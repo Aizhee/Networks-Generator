@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>OSPF Config Generator</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    textarea, pre { width: 100%; margin-top: 1rem; font-family: monospace; }
+    button { margin-top: 1rem; padding: 0.5rem 1rem; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <h2>OSPF Command Generator</h2>
+  <p>Paste your <code>show ip route connected</code> output:</p>
+  <textarea id="input" rows="8" placeholder="Paste output here..."></textarea>
+  <button onclick="generate()">Generate OSPF Commands</button>
+  <h3>Generated Commands:</h3>
+  <pre id="output"></pre>
+
+  <script>
+    function generate() {
+      const input = document.getElementById("input").value;
+      const lines = input.split("\n");
+      const networks = [];
+
+      lines.forEach(line => {
+        const match = line.match(/C\s+(\d+\.\d+\.\d+\.\d+)\/(\d+)/);
+        if (match) {
+          const ip = match[1];
+          const prefix = parseInt(match[2]);
+          const wildcard = getWildcard(prefix);
+          networks.push(`network ${ip} ${wildcard} area 0`);
+        }
+      });
+
+      const output = ["conf t","router ospf 1", ...networks].join("\n");
+      document.getElementById("output").textContent = output;
+    }
+
+    function getWildcard(prefix) {
+      const mask = 0xFFFFFFFF << (32 - prefix);
+      const wildcard = ~mask >>> 0;
+      return [(wildcard >>> 24), (wildcard >>> 16 & 255), (wildcard >>> 8 & 255), (wildcard & 255)].join(".");
+    }
+  </script>
+</body>
+</html>
