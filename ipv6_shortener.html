@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>IPv6 Shortener</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+    }
+    input, button {
+      padding: 8px;
+      margin-top: 10px;
+      width: 100%;
+      font-size: 1em;
+    }
+    h2 {
+      margin-bottom: 0;
+    }
+    #output {
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 1.1em;
+      background-color: #f5f5f5;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>IPv6 Address Shortener</h2>
+  <input type="text" id="ipv6Input" value="FE80:0000:0000:0000:a00a:0000:a10a:0000 /64">
+  <button onclick="shortenIPv6()">Shorten Address</button>
+
+  <div id="output"></div>
+
+  <script>
+    function shortenIPv6() {
+      const input = document.getElementById('ipv6Input').value.trim();
+      let [ip, cidr] = input.split('/');
+      const groups = ip.split(':').map(g => g.padStart(4, '0').toLowerCase());
+
+      // Remove leading zeros
+      const simplified = groups.map(g => g.replace(/^0+/, '') || '0');
+
+      // Find the longest sequence of zeros for "::"
+      let longestStart = -1, longestLength = 0;
+      let currentStart = -1, currentLength = 0;
+
+      for (let i = 0; i <= simplified.length; i++) {
+        if (i < simplified.length && simplified[i] === '0') {
+          if (currentStart === -1) currentStart = i;
+          currentLength++;
+        } else {
+          if (currentLength > longestLength) {
+            longestStart = currentStart;
+            longestLength = currentLength;
+          }
+          currentStart = -1;
+          currentLength = 0;
+        }
+      }
+
+      // Replace longest zero sequence with "::"
+      let finalGroups;
+      if (longestLength > 1) {
+        finalGroups = [
+          ...simplified.slice(0, longestStart),
+          '',
+          ...simplified.slice(longestStart + longestLength)
+        ];
+        // Handle edge case where result starts or ends with "::"
+        if (longestStart === 0) finalGroups.unshift('');
+        if (longestStart + longestLength === 8) finalGroups.push('');
+      } else {
+        finalGroups = simplified;
+      }
+
+      const shortened = finalGroups.join(':').replace(/:{3,}/, '::');
+      const result = cidr ? `${shortened}/${cidr}` : shortened;
+
+      document.getElementById('output').innerText = `Shortened IPv6: ${result}`;
+    }
+  </script>
+
+</body>
+</html>
