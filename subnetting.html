@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Compact Subnet Table</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      background-color: #f4f4f4;
+    }
+    h2 {
+      margin-bottom: 1rem;
+    }
+    input, button {
+      padding: 0.5rem;
+      margin: 0.3rem 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.6rem;
+      text-align: left;
+      background-color: #eaf5e8;
+    }
+    th {
+      background-color: #cce0cc;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Compact Subnet Table Generator</h2>
+
+  <label>Network (e.g., 10.0.0.0):</label><br>
+  <input type="text" id="network" value="10.0.0.0"><br>
+  <label>Number of Networks Needed:</label><br>
+  <input type="number" id="numSubnets" value="100"><br>
+  <button onclick="generateRow()">Generate Row</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Network</th>
+        <th>Number of Networks Needed</th>
+        <th>No of Bits Needed</th>
+        <th>Subnet Mask</th>
+        <th>/Subnets Mask</th>
+        <th>Octet, Increment</th>
+        <th>Subnets</th>
+        <th>Usable IP</th>
+        <th>Broadcast</th>
+      </tr>
+    </thead>
+    <tbody id="resultBody"></tbody>
+  </table>
+
+  <script>
+function ipToArray(ip) {
+  return ip.split('.').map(Number);
+}
+
+function arrayToIp(arr) {
+  return arr.join('.');
+}
+
+function incrementIp(ipArr, octetIndex, increment) {
+  let ip = [...ipArr];
+  ip[octetIndex] += increment;
+  for (let i = octetIndex; i > 0; i--) {
+    if (ip[i] > 255) {
+      ip[i] -= 256;
+      ip[i - 1] += 1;
+    }
+  }
+  return ip;
+}
+
+function ipToInt(ipArr) {
+  return (
+    (ipArr[0] << 24 >>> 0) + 
+    (ipArr[1] << 16) + 
+    (ipArr[2] << 8) + 
+    ipArr[3]
+  ) >>> 0; // force unsigned
+}
+
+function intToIp(int) {
+  return [
+    (int >>> 24) & 255,
+    (int >>> 16) & 255,
+    (int >>> 8) & 255,
+    int & 255
+  ].join('.');
+}
+
+function calculateIncrementAndOctet(baseClass, newCidr) {
+  const incrementBits = 32 - newCidr;
+  const increment = Math.pow(2, incrementBits); // number of IPs per subnet
+
+  let octetIndex = Math.floor(newCidr / 8); // affected octet
+  const octetLabel = ["1st", "2nd", "3rd", "4th"][octetIndex];
+
+  const byteIncrement = (increment >> ((3 - octetIndex) * 8)) & 255;
+
+  return { increment, byteIncrement, octetIndex, octetLabel };
+}
+
+function generateRow() {
+  const networkInput = document.getElementById('network').value.trim();
+  const numSubnets = parseInt(document.getElementById('numSubnets').value);
+  const baseIpArr = ipToArray(networkInput);
+  const baseIpInt = ipToInt(baseIpArr);
+
+  const bitsNeeded = Math.ceil(Math.log2(numSubnets));
+  const baseClass = baseIpArr[0] < 128 ? 8 : baseIpArr[0] < 192 ? 16 : 24;
+  const newCidr = baseClass + bitsNeeded;
+
+  const mask = 0xffffffff << (32 - newCidr);
+  const subnetMask = [
+    (mask >> 24) & 255,
+    (mask >> 16) & 255,
+    (mask >> 8) & 255,
+    mask & 255
+  ].join('.');
+
+  const { increment, byteIncrement, octetIndex, octetLabel } = calculateIncrementAndOctet(baseClass, newCidr);
+
+  let subnetList = [];
+  let usableList = [];
+  let broadcastList = [];
+
+  // Corrected line: calculate total as 2^bitsNeeded
+  const total = Math.pow(2, bitsNeeded);
+  for (let i = 0; i < total; i++) {
+    const subnetStartInt = baseIpInt + (i * increment);
+    const broadcastInt = subnetStartInt + increment - 1;
+
+    const subnetStartIp = intToIp(subnetStartInt);
+    const broadcastIp = intToIp(broadcastInt);
+    const usableStart = intToIp(subnetStartInt + 1);
+    const usableEnd = intToIp(broadcastInt - 1);
+
+    subnetList.push(subnetStartIp);
+    usableList.push(`${usableStart} - ${usableEnd}`);
+    broadcastList.push(broadcastIp);
+  }
+
+  const formatList = (list) => {
+    return `${list.slice(0, 5).join('<br>')}<br>...<br>${list.at(-1)}`;
+  };
+
+  const row = document.createElement('tr');
+  row.innerHTML = `
+    <td>${networkInput}</td>
+    <td>${numSubnets}</td>
+    <td>${bitsNeeded}</td>
+    <td>${subnetMask}</td>
+    <td>/${baseClass}+${bitsNeeded} = /${newCidr}</td>
+    <td>${octetLabel}, ${byteIncrement}i</td>
+    <td>${formatList(subnetList)}</td>
+    <td>${formatList(usableList)}</td>
+    <td>${formatList(broadcastList)}</td>
+  `;
+
+  document.getElementById('resultBody').appendChild(row);
+}
+  </script>
+
+</body>
+</html>

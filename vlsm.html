@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VLSM Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1em;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    input, button {
+      padding: 8px;
+      margin: 4px 0;
+    }
+    textarea {
+      width: 100%;
+      height: 80px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>VLSM Calculator</h2>
+  <label>Base Network Address: </label>
+  <input type="text" id="network" value="192.168.0.0" />
+  <br>
+  <label>Hosts Needed (comma-separated): </label>
+  <textarea id="hosts">120,60,20,5,2</textarea>
+  <br>
+  <button onclick="generateVLSM()">Generate VLSM Table</button>
+
+  <table id="vlsmTable">
+    <thead>
+      <tr>
+        <th>Hosts Needed</th>
+        <th>No. of Bits Needed</th>
+        <th>/CIDR</th>
+        <th>Octet, Increment</th>
+        <th>Subnet Mask</th>
+        <th>Subnet</th>
+        <th>Usable IP</th>
+        <th>Broadcast</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    function bitsNeededForHosts(hosts) {
+      let bits = 0;
+      while (Math.pow(2, bits) - 2 < hosts) bits++;
+      return bits;
+    }
+
+    function bitsToSubnetMask(bits) {
+      const maskBits = 32 - bits;
+      let mask = [];
+      for (let i = 0; i < 4; i++) {
+        const byte = Math.min(8, maskBits - i * 8);
+        mask.push(byte > 0 ? 256 - Math.pow(2, 8 - byte) : 0);
+      }
+      return mask.join('.');
+    }
+
+    function bitsToOctetIncrement(bits) {
+      const blockSize = Math.pow(2, bits);
+      if (bits <= 8) return `4th, ${blockSize}i`;
+      if (bits <= 16) return `3rd, ${blockSize >> 8}i`;
+      if (bits <= 24) return `2nd, ${blockSize >> 16}i`;
+      return `1st, ${blockSize >> 24}i`;
+    }
+
+    function ipToInt(ip) {
+      return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet), 0) >>> 0;
+    }
+
+    function intToIp(int) {
+      return [(int >>> 24), (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+    }
+
+    function generateVLSM() {
+      const baseIp = document.getElementById('network').value.trim();
+      const hosts = document.getElementById('hosts').value.split(',').map(x => parseInt(x.trim())).sort((a, b) => b - a);
+
+      const tbody = document.getElementById('vlsmTable').querySelector('tbody');
+      tbody.innerHTML = "";
+
+      let currentIp = ipToInt(baseIp);
+
+      for (let h of hosts) {
+        const bits = bitsNeededForHosts(h);
+        const blockSize = Math.pow(2, bits);
+        const cidr = 32 - bits;
+        const subnetMask = bitsToSubnetMask(bits);
+        const increment = bitsToOctetIncrement(bits);
+
+        const subnet = intToIp(currentIp);
+        const firstHost = intToIp(currentIp + 1);
+        const lastHost = intToIp(currentIp + blockSize - 2);
+        const broadcast = intToIp(currentIp + blockSize - 1);
+
+        const row = `<tr>
+          <td>${h}</td>
+          <td>${bits}</td>
+          <td>/${cidr}</td>
+          <td>${increment}</td>
+          <td>${subnetMask}</td>
+          <td>${subnet}</td>
+          <td>${firstHost} - ${lastHost}</td>
+          <td>${broadcast}</td>
+        </tr>`;
+
+        tbody.innerHTML += row;
+        currentIp += blockSize;
+      }
+    }
+  </script>
+</body>
+</html>
