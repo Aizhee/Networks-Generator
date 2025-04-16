@@ -83,7 +83,7 @@ function generateVLSM() {
         data.hosts.push(h);
         data.bits.push(bits);
         data.cidr.push(cidr);
-        data.increments.push(`${octet}, ${increment}i`);
+        data.increments.push(`${increment}i`);
         data.masks.push(mask);
         data.subnets.push(intToIp(current));
         data.usable.push(`${intToIp(current + 1)}-${intToIp(current + blockSize - 2)}`);
@@ -93,15 +93,11 @@ function generateVLSM() {
         
     }
 
-    if (data.networks.length === 0) {
-      data.networks.push(intToIp(current));
-    }
-
     const row = `<tr>
         <td class="mono">${data.networks.join('<br>')}</td>
         <td class="mono">${data.hosts.join('<br>')}</td>
         <td class="mono">${data.bits.join('<br>')}</td>
-        <td class="mono">/${data.cidr.join('<br>/')}</td>
+        <td class="mono">${data.cidr.join('<br>')}</td>
         <td class="mono">${data.increments.join('<br>')}</td>
         <td class="mono">${data.masks.join('<br>')}</td>
         <td class="mono">${data.subnets.join('<br>')}</td>
