@@ -90,7 +90,11 @@ function generateVLSM() {
         data.broadcast.push(intToIp(current + blockSize - 1));
         
         current += blockSize;
-        data.networks.push(intToIp(current));
+        
+    }
+
+    if (data.networks.length === 0) {
+      data.networks.push(intToIp(current));
     }
 
     const row = `<tr>
