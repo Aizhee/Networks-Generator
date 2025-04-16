@@ -118,9 +118,10 @@ function intToIp(int) {
 }
 
 function cidrToMask(cidr) {
-    return Array.from({length: 4}, (_, i) => 
-        Math.min(255, 256 - Math.pow(2, 8 - Math.min(8, cidr - i * 8)))
-    ).join('.');
+    return Array.from({length: 4}, (_, i) => {
+        const bitsInOctet = Math.max(0, Math.min(8, cidr - i * 8));
+        return Math.min(255, 256 - Math.pow(2, 8 - bitsInOctet));
+    }).join('.');
 }
 
 function getIncrementInfo(blockSize) {
